@@ -1,0 +1,208 @@
+#!/bin/bash
+remove_old_data(){
+
+
+#!/bin/bash
+
+if [ -z $2 ]
+then
+    echo "Try this: $0 '/home/backups' 10"
+    exit 1
+fi
+
+destination_directory=$1
+saveDaysCount=$2
+
+currentUnixTime=$(date +%s)
+saveDaysCountSeconds=$(($saveDaysCount*60*60*24))
+
+cd $destination_directory  # - переход в каталог с резервными копиями
+while read filename 
+do                     # - начало итерации цикла
+	file_y=$(echo $filename | awk -F "-" {'print $1'}) # - год из имени файла
+	file_m=$(echo $filename | awk -F "-" {'print $2'}) # - месяц из имени файла
+	file_d=$(echo $filename | awk -F "-" {'print $3'}) # - день из имени файла
+	file_H=$(echo $filename | awk -F "-" {'print $4'}) # - час из имени файла
+	file_M=$(echo $filename | awk -F "-" {'print $5'}) # - минута из имени файла
+	fileUnixTime=$(date --date="$file_y-$file_m-$file_d $file_H:$file_M" +%s) #unixtime из имени файла
+	fileUnixTimePlussaveDaysCount=$(($fileUnixTime+$saveDaysCountSeconds))
+
+
+	# - если fileUnixTimePlussaveDaysCount меньше currentUnixTime, то удаляем filename
+	if [ $fileUnixTimePlussaveDaysCount -lt $currentUnixTime ]
+	then
+		rm $filename
+		[ $? -eq 0 ] && echo "File $filename was deleted" || echo "Error deletion $filename" 
+	fi
+
+done < <(cd /home/administrator/daisy/backups; ls *--documents.tar) # - конец итерации цикла
+}
+
+
+
+
+
+
+
+
+backup_data(){
+#!/bin/bash
+
+source_directory="/home/administrator/daisy/sourse"
+source_directory_documents="/home/documents"
+source_directory_usershare="/home/usershare"
+source_directory_corporate="/home/corporate"
+
+destination_directory="/home/administrator/daisy/backups"
+
+archivesuffix="documents"
+archiveextension="tar"
+
+saveDaysCount=10 # - за это количество дней резервные копии нужно сохранить. остальные удалить
+
+archivename="$(date +%Y-%m-%d-%H-%M)--$archivesuffix.$archiveextension"  # - объединение переменных в имя файла и присвоение ему имени в формате даты создания
+
+
+# - Проверка существования исходного каталога
+
+
+echo "----------------------------------------------------"
+
+
+if [ -d "$source_directory" ]
+then
+echo "ERROR: Source directory $source_directory exist"
+echo "----------------------------------------------------"
+
+exit 1
+fi
+
+if [ ! -d "$source_directory" ]
+then
+
+echo "Make source directory $source_directory"
+echo "----------------------------------------------------"
+
+mkdir -p $source_directory
+        if [ $? -eq 1 ]
+        then
+        echo "ERROR: Error directory creation $source_directory..."
+	echo "----------------------------------------------------"
+exit 2
+        fi
+fi
+
+
+ # - Проверка существования исходного каталога documents
+
+
+if [ ! -d "$source_directory_documents" ]
+then
+echo "ERROR: Source directory $source_directory_documents does not exist"
+echo "----------------------------------------------------"
+exit 3
+fi
+
+cp -r $source_directory_documents $source_directory
+
+ # - Проверка существования исходного каталога usershare
+
+if [ ! -d "$source_directory_usershare" ]
+then
+echo "ERROR: Source directory $source_directory_usershare does not exists"
+echo "----------------------------------------------------"
+exit 4
+fi
+
+ # - Проверка существования исходного каталога corporate
+
+cp -r $source_directory_usershare $source_directory
+
+
+if [ ! -d "$source_directory_corporate" ]
+then
+echo "ERROR: Source directory $source_directory_corporate does not exists"
+echo "----------------------------------------------------"
+exit 5
+fi
+
+cp -r $source_directory_corporate $source_directory
+
+
+# - проверка успешного копирования каталогов системы в папку source.
+
+source_directory_ls=$(ls /home/administrator/daisy/sourse)
+
+
+
+echo "These sourse directory were appointed for backup:"
+
+echo "--------------------------------------------------"
+
+echo "$source_directory_ls"
+
+echo "--------------------------------------------------"
+
+
+
+
+# - проверка существования каталога backups
+
+if [ ! -d "$destination_directory" ]
+then
+echo "Source directory $destination_directory does not exists"
+echo "----------------------------------------------------"
+echo "Make directory $destination_directory..."
+echo "----------------------------------------------------"
+mkdir -p $destination_directory
+	if [ $? -eq 1 ]
+	then
+	echo "Error directory creation $destination_directory..."
+	echo "----------------------------------------------------"
+exit 6
+	fi
+fi 
+
+
+if [ ! -d "$destination_directory" ]
+then
+echo "Error: directory $destination_directory does not exists"
+echo "----------------------------------------------------"
+exit 7
+fi # - проверка успешного создания каталога Backups.
+
+
+echo "Start backup…"
+echo "----------------------------------------------------"
+
+
+cd $source_directory
+
+tar -cf $destination_directory/$archivename . # - архивирование выбранных файлов
+if [ $? -eq 0 ]
+then
+	remove_old_data /home/administrator/daisy 10 # - вызов функции remove_old_data и объявление ее параметров
+else
+	echo "Backup failed"
+	echo "!!!!!!!!!!!!!"
+	exit 6
+fi # - завершение условного оператора
+
+echo "The rotate function remove_old_data is complete"
+echo "----------------------------------------------------"
+if [ $? -eq 0 ]
+then
+rm -rf $source_directory
+fi # - завершение условного оператора
+
+
+echo "Backup done"
+echo "----------------------------------------------------"
+echo "^_^"
+
+exit 0
+
+}
+
+
+backup_data
